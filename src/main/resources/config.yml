@@ -1,0 +1,9 @@
+Settings:
+  prefix: "&f[ &eDP-CustomFishing &f] "
+  Lang: en_US
+
+  PricePerLength: 10
+
+  AllowedWorlds:
+    - world
+    - bskyblock_world
