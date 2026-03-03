@@ -54,6 +54,12 @@ public class DPCFCommand {
                     return true;
                 });
 
+        builder.beginSubCommand("opensell", "/dpcf opensell - open the sell GUI")
+                .executesPlayer((player, args) -> {
+                    DPCFFunction.openShop(player);
+                    return true;
+                });
+
         builder.beginSubCommand("reload", "/dpcf reload - reload the plugin")
                 .withPermission("dpcf.admin")
                 .executesPlayer((player, args) -> {
