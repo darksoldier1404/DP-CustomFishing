@@ -5,6 +5,9 @@ import com.darksoldier1404.dppc.api.inventory.DInventory;
 import com.darksoldier1404.dppc.events.dinventory.DInventoryClickEvent;
 import com.darksoldier1404.dppc.events.dinventory.DInventoryCloseEvent;
 import com.darksoldier1404.dppc.utils.NBT;
+import net.md_5.bungee.api.chat.TextComponent;
+import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -64,16 +67,19 @@ public class DPCFEvent implements Listener {
     @EventHandler
     public void onFishing(PlayerFishEvent e) {
         Player p = e.getPlayer();
-        if (!plugin.allowedWorlds.contains(p.getWorld().getName())) return;
         if (e.getState() != PlayerFishEvent.State.CAUGHT_FISH) {
             return;
         }
+        if (!plugin.allowedWorlds.contains(p.getWorld().getName())) return;
         e.setCancelled(true);
         e.getHook().remove();
         ItemStack caught = DPCFFunction.getRandomFishItem();
+        String rank = NBT.getStringTag(caught, "dpcf_rank");
         if (caught == null) {
             return;
         }
         p.getInventory().addItem(caught);
+        p.sendMessage(plugin.getPrefix() + "§a물고기를 낚았습니다! §e" + caught.getItemMeta().getDisplayName() + " §a(§e" + rank + "§a)");
+        p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BELL, SoundCategory.PLAYERS, 1f, 2f);
     }
 }

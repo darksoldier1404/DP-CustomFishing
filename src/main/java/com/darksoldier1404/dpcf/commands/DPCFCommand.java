@@ -21,15 +21,27 @@ public class DPCFCommand {
                 });
         builder.beginSubCommand("items", "/dpcf items <rank> - edit items for a rank")
                 .withPermission("dpcf.admin")
-                .withArgument(ArgumentIndex.ARG_0, ArgumentType.STRING)
+                .withArgument(ArgumentIndex.ARG_0, ArgumentType.STRING, plugin.fishRankData.keySet())
                 .executesPlayer((player, args) -> {
                     String rank = args.getString(ArgumentIndex.ARG_0);
                     DPCFFunction.editItems(player, rank);
                     return true;
                 });
+
+        builder.beginSubCommand("price", "/dpcf price <rank> <price> - set price for a rank")
+                .withPermission("dpcf.admin")
+                .withArgument(ArgumentIndex.ARG_0, ArgumentType.STRING, plugin.fishRankData.keySet())
+                .withArgument(ArgumentIndex.ARG_1, ArgumentType.INTEGER)
+                .executesPlayer((player, args) -> {
+                    String rank = args.getString(ArgumentIndex.ARG_0);
+                    int price = args.getInteger(ArgumentIndex.ARG_1);
+                    DPCFFunction.setPrice(player, rank, price);
+                    return true;
+                });
+
         builder.beginSubCommand("length", "/dpcf length <rank> <minLength> <maxLength> - set length range for a rank")
                 .withPermission("dpcf.admin")
-                .withArgument(ArgumentIndex.ARG_0, ArgumentType.STRING)
+                .withArgument(ArgumentIndex.ARG_0, ArgumentType.STRING, plugin.fishRankData.keySet())
                 .withArgument(ArgumentIndex.ARG_1, ArgumentType.INTEGER)
                 .withArgument(ArgumentIndex.ARG_2, ArgumentType.INTEGER)
                 .executesPlayer((player, args) -> {
@@ -39,14 +51,36 @@ public class DPCFCommand {
                     DPCFFunction.setLengthRange(player, rank, minLength, maxLength);
                     return true;
                 });
+
+        builder.beginSubCommand("weight", "/dpcf weight <rank> <weight> - set weight for a rank")
+                .withPermission("dpcf.admin")
+                .withArgument(ArgumentIndex.ARG_0, ArgumentType.STRING, plugin.fishRankData.keySet())
+                .withArgument(ArgumentIndex.ARG_1, ArgumentType.INTEGER)
+                .executesPlayer((player, args) -> {
+                    String rank = args.getString(ArgumentIndex.ARG_0);
+                    int weight = args.getInteger(ArgumentIndex.ARG_1);
+                    DPCFFunction.setWeight(player, rank, weight);
+                    return true;
+                });
+
         builder.beginSubCommand("delete", "/dpcf delete <rank> - delete a rank")
                 .withPermission("dpcf.admin")
-                .withArgument(ArgumentIndex.ARG_0, ArgumentType.STRING)
+                .withArgument(ArgumentIndex.ARG_0, ArgumentType.STRING, plugin.fishRankData.keySet())
                 .executesPlayer((player, args) -> {
                     String rank = args.getString(ArgumentIndex.ARG_0);
                     DPCFFunction.deleteRank(player, rank);
                     return true;
                 });
+
+        builder.beginSubCommand("setpriceperlength", "/dpcf setpriceperlength <priceperlength> - set price per length for all rank")
+                .withPermission("dpcf.admin")
+                .withArgument(ArgumentIndex.ARG_0, ArgumentType.INTEGER)
+                .executesPlayer((player, args) -> {
+                    int lengthPerPrice = args.getInteger(ArgumentIndex.ARG_0);
+                    DPCFFunction.setLengthPerPrice(player, lengthPerPrice);
+                    return true;
+                });
+
         builder.beginSubCommand("list", "/dpcf list - list all ranks")
                 .withPermission("dpcf.admin")
                 .executesPlayer((player, args) -> {
@@ -55,6 +89,7 @@ public class DPCFCommand {
                 });
 
         builder.beginSubCommand("opensell", "/dpcf opensell - open the sell GUI")
+                .withPermission("dpcf.sell")
                 .executesPlayer((player, args) -> {
                     DPCFFunction.openShop(player);
                     return true;
@@ -63,6 +98,7 @@ public class DPCFCommand {
         builder.beginSubCommand("reload", "/dpcf reload - reload the plugin")
                 .withPermission("dpcf.admin")
                 .executesPlayer((player, args) -> {
+                    plugin.reload();
                     DPCFFunction.init();
                     player.sendMessage("§aCustomFishing plugin reloaded.");
                     return true;

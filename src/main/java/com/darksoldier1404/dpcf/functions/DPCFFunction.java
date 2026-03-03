@@ -3,7 +3,6 @@ package com.darksoldier1404.dpcf.functions;
 import com.darksoldier1404.dpcf.obj.FishRank;
 import com.darksoldier1404.dppc.api.essentials.MoneyAPI;
 import com.darksoldier1404.dppc.api.inventory.DInventory;
-import com.darksoldier1404.dppc.utils.InventoryUtils;
 import com.darksoldier1404.dppc.utils.NBT;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemFlag;
@@ -108,26 +107,38 @@ public class DPCFFunction {
             return;
         }
         player.sendMessage(plugin.prefix + "등급 목록:");
-        plugin.fishRankData.values().forEach(fr -> player.sendMessage("§e- " + fr.getName() + " §7(길이: " + fr.getMinLength() + " - " + fr.getMaxLength() + ", 가격: " + fr.getDefaultPrice() + ")"));
+        plugin.fishRankData.values().forEach(fr -> player.sendMessage("§e- " + fr.getName() + " §7(길이: " + fr.getMinLength() + " - " + fr.getMaxLength() + ", 가격: " + fr.getDefaultPrice() + ", 가중치: " + fr.getWeight() + ")"));
     }
 
     public static ItemStack getRandomFishItem() {
         if (plugin.fishRankData.isEmpty()) {
             return null;
         }
-        int totalWeight = plugin.fishRankData.values().stream().mapToInt(FishRank::getWeight).sum();
-        int randomWeight = (int) (Math.random() * totalWeight);
-        for (FishRank fr : plugin.fishRankData.values()) {
-            randomWeight -= fr.getWeight();
-            if (randomWeight < 0) {
-                DInventory inv = fr.getInventory();
-                if (inv.getAllPageItems().isEmpty()) {
-                    return null;
-                }
-                return applyInfo(inv.getAllPageItems().get((int) (Math.random() * inv.getAllPageItems().size())).clone(), fr);
+        List<FishRank> ranks = new ArrayList<>(plugin.fishRankData.values());
+        int totalWeight = ranks.stream().mapToInt(FishRank::getWeight).sum();
+        if (totalWeight <= 0) {
+            return null;
+        }
+        int randomWeight = java.util.concurrent.ThreadLocalRandom.current().nextInt(totalWeight);
+        int cumulativeWeight = 0;
+        FishRank selectedRank = null;
+        for (FishRank fr : ranks) {
+            cumulativeWeight += fr.getWeight();
+            if (randomWeight < cumulativeWeight) {
+                selectedRank = fr;
+                break;
             }
         }
-        return null;
+        if (selectedRank == null) {
+            return null;
+        }
+        DInventory inv = selectedRank.getInventory();
+        List<ItemStack> items = inv.getAllPageItems();
+        if (items.isEmpty()) {
+            return null;
+        }
+        ItemStack item = items.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(items.size())).clone();
+        return applyInfo(item, selectedRank);
     }
 
     public static ItemStack applyInfo(ItemStack item, FishRank fr) {
@@ -210,5 +221,36 @@ public class DPCFFunction {
         MoneyAPI.addMoney(p, totalPrice);
         p.sendMessage(plugin.prefix + "물고기를 판매하여 §e" + totalPrice + "§a원을 얻었습니다.");
         updatePrticeInfo(inv);
+    }
+
+    public static void setWeight(Player player, String rank, int weight) {
+        if (!isExistRank(rank)) {
+            player.sendMessage(plugin.prefix + "존재하지 않는 등급입니다.");
+            return;
+        }
+        FishRank fr = plugin.fishRankData.get(rank);
+        fr.setWeight(weight);
+        plugin.fishRankData.put(rank, fr);
+        plugin.fishRankData.save(rank);
+        player.sendMessage(plugin.prefix + "등급의 가중치가 설정되었습니다.");
+    }
+
+    public static void setPrice(Player player, String rank, int price) {
+        if (!isExistRank(rank)) {
+            player.sendMessage(plugin.prefix + "존재하지 않는 등급입니다.");
+            return;
+        }
+        FishRank fr = plugin.fishRankData.get(rank);
+        fr.setDefaultPrice(price);
+        plugin.fishRankData.put(rank, fr);
+        plugin.fishRankData.save(rank);
+        player.sendMessage(plugin.prefix + "등급의 기본 가격이 설정되었습니다.");
+    }
+
+    public static void setLengthPerPrice(Player player, int lengthPerPrice) {
+        plugin.pricePerLength = lengthPerPrice;
+        plugin.getConfig().set("Settings.PricePerLength", lengthPerPrice);
+        plugin.saveConfig();
+        player.sendMessage(plugin.prefix + "길이당 가격이 §e" + lengthPerPrice + "§a원으로 설정되었습니다.");
     }
 }

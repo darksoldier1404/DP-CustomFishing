@@ -8,14 +8,14 @@ import com.darksoldier1404.dppc.data.DPlugin;
 import com.darksoldier1404.dppc.data.DataContainer;
 import com.darksoldier1404.dppc.data.DataType;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 public class CustomFishing extends DPlugin {
     public static CustomFishing plugin;
     public static DataContainer<String, FishRank> fishRankData;
     public static int pricePerLength;
-    public static Set<String> allowedWorlds = new HashSet<>();
+    public static List<String> allowedWorlds = new ArrayList<>();
 
     public CustomFishing() {
         super(false);
