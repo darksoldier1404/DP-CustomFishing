@@ -11,3 +11,49 @@ Settings:
   symbol:
     left: "◀"
     right: "▶"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 낚시 대회 설정
+# Duration: 대회 진행 시간 (분)
+# Rewards.<Length|MostCatch>.<1st|2nd|3rd|participation>.commands
+#   - %player% 는 수상 플레이어 닉네임으로 자동 치환됩니다.
+#   - Vault(EssentialsX) 기반 예시 커맨드가 기본값으로 설정되어 있습니다.
+# ──────────────────────────────────────────────────────────────────────────────
+Contest:
+  Duration: 30
+
+  Rewards:
+    Length:
+      1st:
+        commands:
+          - "eco give %player% 10000"
+          - "give %player% diamond 5"
+      2nd:
+        commands:
+          - "eco give %player% 5000"
+          - "give %player% diamond 3"
+      3rd:
+        commands:
+          - "eco give %player% 2000"
+          - "give %player% diamond 1"
+      participation:
+        commands:
+          - "eco give %player% 500"
+
+    MostCatch:
+      1st:
+        commands:
+          - "eco give %player% 10000"
+          - "give %player% diamond 5"
+      2nd:
+        commands:
+          - "eco give %player% 5000"
+          - "give %player% diamond 3"
+      3rd:
+        commands:
+          - "eco give %player% 2000"
+          - "give %player% diamond 1"
+      participation:
+        commands:
+          - "eco give %player% 500"
+

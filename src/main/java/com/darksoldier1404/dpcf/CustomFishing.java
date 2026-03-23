@@ -2,6 +2,7 @@ package com.darksoldier1404.dpcf;
 
 import com.darksoldier1404.dpcf.commands.DPCFCommand;
 import com.darksoldier1404.dpcf.events.DPCFEvent;
+import com.darksoldier1404.dpcf.functions.ContestManager;
 import com.darksoldier1404.dpcf.functions.DPCFFunction;
 import com.darksoldier1404.dpcf.obj.FUser;
 import com.darksoldier1404.dpcf.obj.FishRank;
@@ -42,10 +43,12 @@ public class CustomFishing extends DPlugin {
         DPCFCommand.init();
         DPCFFunction.init();
         DPCFFunction.initTask();
+        ContestManager.init();
     }
 
     @Override
     public void onDisable() {
+        ContestManager.clearAll();
         saveAllData();
     }
 }

@@ -1,6 +1,7 @@
 package com.darksoldier1404.dpcf.events;
 
 import com.darksoldier1404.dpcf.events.custom.FishingSuccessEvent;
+import com.darksoldier1404.dpcf.functions.ContestManager;
 import com.darksoldier1404.dpcf.functions.DPCFFunction;
 import com.darksoldier1404.dppc.api.inventory.DInventory;
 import com.darksoldier1404.dppc.events.dinventory.DInventoryClickEvent;
@@ -31,12 +32,14 @@ public class DPCFEvent implements Listener {
     public void onJoin(PlayerJoinEvent e) {
         Player p = e.getPlayer();
         DPCFFunction.initPlayer(p);
+        ContestManager.onPlayerJoin(p);
     }
 
     @EventHandler
     public void onQuit2(PlayerQuitEvent e) {
         Player p = e.getPlayer();
         DPCFFunction.savePlayer(p);
+        ContestManager.onPlayerQuit(p);
     }
 
     @EventHandler
@@ -140,6 +143,8 @@ public class DPCFEvent implements Listener {
     @EventHandler
     public void onFishing(FishingSuccessEvent e) {
         Player p = e.getPlayer();
+        // 대회 점수 갱신
+        ContestManager.onFishCaught(p, e.getCaughtItem());
         if (p.getInventory().firstEmpty() == -1) {
             p.sendMessage(plugin.prefix + "인벤토리가 가득 찼습니다!");
         }

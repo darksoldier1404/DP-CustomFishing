@@ -1,5 +1,7 @@
 package com.darksoldier1404.dpcf.commands;
 
+import com.darksoldier1404.dpcf.enums.ContestType;
+import com.darksoldier1404.dpcf.functions.ContestManager;
 import com.darksoldier1404.dpcf.functions.DPCFFunction;
 import com.darksoldier1404.dppc.builder.command.ArgumentIndex;
 import com.darksoldier1404.dppc.builder.command.ArgumentType;
@@ -101,6 +103,76 @@ public class DPCFCommand {
                     plugin.reload();
                     DPCFFunction.init();
                     player.sendMessage("§aCustomFishing plugin reloaded.");
+                    return true;
+                });
+
+        // ── 대회 시스템 ────────────────────────────────────────────────────────
+        // /dpcf contest create <name> <length|mostcatch> <HH:mm>
+        builder.beginSubCommand("contestcreate",
+                        "/dpcf contestcreate <name> <length|mostcatch> <HH:mm> - schedule a contest")
+                .withPermission("dpcf.admin")
+                .withArgument(ArgumentIndex.ARG_0, ArgumentType.STRING)
+                .withArgument(ArgumentIndex.ARG_1, ArgumentType.STRING)
+                .withArgument(ArgumentIndex.ARG_2, ArgumentType.STRING)
+                .executesPlayer((player, args) -> {
+                    String name = args.getString(ArgumentIndex.ARG_0);
+                    String typeStr = args.getString(ArgumentIndex.ARG_1);
+                    String time = args.getString(ArgumentIndex.ARG_2);
+                    if (name == null || typeStr == null || time == null) {
+                        player.sendMessage(plugin.prefix + "§c사용법: /dpcf contestcreate <이름> <length|mostcatch> <HH:mm>");
+                        return true;
+                    }
+                    ContestType type = ContestType.fromString(typeStr);
+                    if (type == null) {
+                        player.sendMessage(plugin.prefix + "§c대회 종류는 §elength §c또는 §emostcatch §c이어야 합니다.");
+                        return true;
+                    }
+                    ContestManager.scheduleContest(player, name, type, time);
+                    return true;
+                });
+
+        // /dpcf contest start <length|mostcatch>
+        builder.beginSubCommand("conteststart",
+                        "/dpcf conteststart <length|mostcatch> - force start a contest")
+                .withPermission("dpcf.admin")
+                .withArgument(ArgumentIndex.ARG_0, ArgumentType.STRING)
+                .executesPlayer((player, args) -> {
+                    String typeStr = args.getString(ArgumentIndex.ARG_0);
+                    if (typeStr == null) {
+                        player.sendMessage(plugin.prefix + "§c사용법: /dpcf conteststart <length|mostcatch>");
+                        return true;
+                    }
+                    ContestType type = ContestType.fromString(typeStr);
+                    if (type == null) {
+                        player.sendMessage(plugin.prefix + "§c대회 종류는 §elength §c또는 §emostcatch §c이어야 합니다.");
+                        return true;
+                    }
+                    if (ContestManager.isContestActive(type)) {
+                        player.sendMessage(plugin.prefix + "§c이미 진행 중인 §f" + type.getDisplayName() + " §c대회가 있습니다.");
+                        return true;
+                    }
+                    ContestManager.startContest(type.getDisplayName() + " 대회", type);
+                    player.sendMessage(plugin.prefix + "§a대회를 즉시 시작했습니다.");
+                    return true;
+                });
+
+        // /dpcf contest stop <length|mostcatch>
+        builder.beginSubCommand("conteststop",
+                        "/dpcf conteststop <length|mostcatch> - force stop a contest")
+                .withPermission("dpcf.admin")
+                .withArgument(ArgumentIndex.ARG_0, ArgumentType.STRING)
+                .executesPlayer((player, args) -> {
+                    String typeStr = args.getString(ArgumentIndex.ARG_0);
+                    if (typeStr == null) {
+                        player.sendMessage(plugin.prefix + "§c사용법: /dpcf conteststop <length|mostcatch>");
+                        return true;
+                    }
+                    ContestType type = ContestType.fromString(typeStr);
+                    if (type == null) {
+                        player.sendMessage(plugin.prefix + "§c대회 종류는 §elength §c또는 §emostcatch §c이어야 합니다.");
+                        return true;
+                    }
+                    ContestManager.stopContest(player, type);
                     return true;
                 });
 
