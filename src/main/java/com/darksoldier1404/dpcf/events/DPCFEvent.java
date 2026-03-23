@@ -1,23 +1,43 @@
 package com.darksoldier1404.dpcf.events;
 
+import com.darksoldier1404.dpcf.events.custom.FishingSuccessEvent;
 import com.darksoldier1404.dpcf.functions.DPCFFunction;
 import com.darksoldier1404.dppc.api.inventory.DInventory;
 import com.darksoldier1404.dppc.events.dinventory.DInventoryClickEvent;
 import com.darksoldier1404.dppc.events.dinventory.DInventoryCloseEvent;
 import com.darksoldier1404.dppc.utils.NBT;
-import net.md_5.bungee.api.chat.TextComponent;
-import org.bukkit.Sound;
-import org.bukkit.SoundCategory;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerFishEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 
 import static com.darksoldier1404.dpcf.CustomFishing.plugin;
 
 public class DPCFEvent implements Listener {
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent e) {
+        Player p = e.getPlayer();
+        DPCFFunction.initPlayer(p);
+    }
+
+    @EventHandler
+    public void onQuit2(PlayerQuitEvent e) {
+        Player p = e.getPlayer();
+        DPCFFunction.savePlayer(p);
+    }
 
     @EventHandler
     public void onInventoryClose(DInventoryCloseEvent e) {
@@ -57,8 +77,11 @@ public class DPCFEvent implements Listener {
                     return;
                 }
                 if (NBT.hasTagKey(item, "dpcf_sell")) {
-                    DPCFFunction.sellItems(p, inv);
-                    return;
+                    if (e.getClick() == ClickType.SHIFT_RIGHT) {
+                        DPCFFunction.sellAllItems(p);
+                    } else {
+                        DPCFFunction.sellItems(p, inv);
+                    }
                 }
             }
         }
@@ -74,12 +97,51 @@ public class DPCFEvent implements Listener {
         e.setCancelled(true);
         e.getHook().remove();
         ItemStack caught = DPCFFunction.getRandomFishItem();
-        String rank = NBT.getStringTag(caught, "dpcf_rank");
         if (caught == null) {
             return;
         }
-        p.getInventory().addItem(caught);
-        p.sendMessage(plugin.getPrefix() + "§a물고기를 낚았습니다! §e" + caught.getItemMeta().getDisplayName() + " §a(§e" + rank + "§a)");
-        p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BELL, SoundCategory.PLAYERS, 1f, 2f);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> DPCFFunction.startMinigame(p, caught), 1L);
+    }
+
+    private Set<UUID> cooldowns = new HashSet<>();
+
+    @EventHandler
+    public void onInteract(PlayerInteractEvent e) {
+        Player p = e.getPlayer();
+        if (!DPCFFunction.isInMinigame(p)) return;
+        e.setCancelled(true);
+        if (e.getHand() == EquipmentSlot.OFF_HAND) return;
+        if (cooldowns.contains(p.getUniqueId())) return;
+        // action filter
+        if (e.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_AIR &&
+                e.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK &&
+                e.getAction() != org.bukkit.event.block.Action.LEFT_CLICK_AIR &&
+                e.getAction() != org.bukkit.event.block.Action.LEFT_CLICK_BLOCK) {
+            return;
+        }
+        boolean isLeftClick = e.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_AIR ||
+                e.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK;
+        DPCFFunction.processClick(p, isLeftClick);
+        cooldowns.add(p.getUniqueId());
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> cooldowns.remove(p.getUniqueId()), 1L);
+    }
+
+    /**
+     * 플레이어 접속 종료 시 진행 중인 미니게임 세션을 정리한다.
+     */
+    @EventHandler
+    public void onQuit(PlayerQuitEvent e) {
+        Player p = e.getPlayer();
+        if (DPCFFunction.isInMinigame(p)) {
+            DPCFFunction.endMinigame(p, false);
+        }
+    }
+
+    @EventHandler
+    public void onFishing(FishingSuccessEvent e) {
+        Player p = e.getPlayer();
+        if (p.getInventory().firstEmpty() == -1) {
+            p.sendMessage(plugin.prefix + "인벤토리가 가득 찼습니다!");
+        }
     }
 }

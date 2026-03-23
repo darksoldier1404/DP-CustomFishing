@@ -1,22 +1,209 @@
 package com.darksoldier1404.dpcf.functions;
 
+import com.darksoldier1404.dpcf.events.custom.FishingSuccessEvent;
+import com.darksoldier1404.dpcf.obj.FUser;
 import com.darksoldier1404.dpcf.obj.FishRank;
+import com.darksoldier1404.dpcf.obj.FishingMinigameSession;
 import com.darksoldier1404.dppc.api.essentials.MoneyAPI;
 import com.darksoldier1404.dppc.api.inventory.DInventory;
+import com.darksoldier1404.dppc.api.placeholder.PlaceholderBuilder;
 import com.darksoldier1404.dppc.utils.NBT;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
+import org.bukkit.Bukkit;
+import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.scheduler.BukkitTask;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static com.darksoldier1404.dpcf.CustomFishing.plugin;
 
 public class DPCFFunction {
+
+    private static final Map<UUID, FishingMinigameSession> activeSessions = new HashMap<>();
+
+    /**
+     * 낚시 미니게임을 시작한다.
+     * 3~5개의 좌클릭/우클릭 액션을 랜덤 생성하고, UI를 표시하며 5초 타이머를 시작한다.
+     *
+     * @param player 낚시한 플레이어
+     * @param fish   잡힌 물고기 아이템
+     */
+    public static void startMinigame(Player player, ItemStack fish) {
+        // 3~5개 랜덤 액션 생성 (true=좌클릭, false=우클릭)
+        int count = 3 + ThreadLocalRandom.current().nextInt(3);
+        List<Boolean> actions = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            actions.add(ThreadLocalRandom.current().nextBoolean());
+        }
+
+        FishingMinigameSession session = new FishingMinigameSession(player.getUniqueId(), fish, actions);
+        activeSessions.put(player.getUniqueId(), session);
+
+        // 초기 UI 표시
+        showMinigameUI(player, session);
+
+        // 매 틱(1/20초)마다 액션바 갱신 및 타임아웃 체크
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            FishingMinigameSession s = activeSessions.get(player.getUniqueId());
+            if (s == null) return;
+            if (s.isExpired()) {
+                endMinigame(player, false);
+                return;
+            }
+            updateActionBar(player, s);
+        }, 1L, 1L);
+
+        session.setTimerTask(task);
+    }
+
+    /**
+     * 플레이어의 클릭 입력을 처리한다.
+     * 올바른 클릭이면 다음 액션으로, 틀리면 실패 처리한다.
+     *
+     * @param player      클릭한 플레이어
+     * @param isLeftClick 좌클릭 여부 (false = 우클릭)
+     */
+    public static void processClick(Player player, boolean isLeftClick) {
+        FishingMinigameSession session = activeSessions.get(player.getUniqueId());
+        if (session == null) return;
+
+        if (session.isExpired()) {
+            endMinigame(player, false);
+            return;
+        }
+
+        boolean required = session.getCurrentAction(); // true=좌, false=우
+        if (required == isLeftClick) {
+            // 정답
+            session.nextAction();
+            if (session.isComplete()) {
+                endMinigame(player, true);
+            } else {
+                showMinigameUI(player, session);
+                player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, 1f, 1.5f);
+            }
+        } else {
+            // 오답
+            endMinigame(player, false);
+        }
+    }
+
+    /**
+     * 미니게임을 종료한다. 성공 시 물고기 지급, 실패 시 물고기 소멸.
+     *
+     * @param player  플레이어
+     * @param success 성공 여부
+     */
+    public static void endMinigame(Player player, boolean success) {
+        FishingMinigameSession session = activeSessions.remove(player.getUniqueId());
+        if (session == null) return;
+
+        if (session.getTimerTask() != null) {
+            session.getTimerTask().cancel();
+        }
+
+        // Title / ActionBar 초기화
+        player.sendTitle("", "", 0, 1, 5);
+        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(""));
+
+        if (success) {
+            ItemStack fish = session.getCaughtFish();
+            player.getInventory().addItem(fish);
+            String rank = NBT.getStringTag(fish, "dpcf_rank");
+            player.sendMessage(plugin.prefix + "§a물고기를 낚았습니다! §e"
+                    + fish.getItemMeta().getDisplayName() + " §a(§e" + rank + "§a)");
+            player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BELL, SoundCategory.PLAYERS, 1f, 2f);
+            player.sendTitle("§a§l낚시 성공!", "§f물고기를 낚아 올렸습니다!", 5, 40, 15);
+            Bukkit.getPluginManager().callEvent(new FishingSuccessEvent(player, fish));
+        } else {
+            player.sendMessage(plugin.prefix + "§c물고기가 도망쳤습니다!");
+            player.playSound(player, Sound.ENTITY_VILLAGER_NO, SoundCategory.PLAYERS, 1f, 0.8f);
+            player.sendTitle("§c§l낚시 실패!", "§7물고기가 도망쳤습니다...", 5, 40, 15);
+        }
+    }
+
+    /**
+     * 플레이어가 현재 미니게임 중인지 반환한다.
+     */
+    public static boolean isInMinigame(Player player) {
+        return activeSessions.containsKey(player.getUniqueId());
+    }
+
+    /**
+     * 서버 종료 또는 플러그인 비활성화 시 모든 세션을 정리한다.
+     */
+    public static void clearAllSessions() {
+        for (FishingMinigameSession session : activeSessions.values()) {
+            if (session.getTimerTask() != null) {
+                session.getTimerTask().cancel();
+            }
+        }
+        activeSessions.clear();
+    }
+
+    // ─── 미니게임 UI ────────────────────────────────────────────────────────────
+
+    /**
+     * 현재 단계의 Title(요구 액션)과 Subtitle(진행 상황)을 표시한다.
+     */
+    private static void showMinigameUI(Player player, FishingMinigameSession session) {
+        boolean isLeft = session.getCurrentAction();
+        String actionTitle = isLeft ? "§e§l◀  좌클릭 !" : "§e§l▶  우클릭 !";
+        String progress = buildProgressSubtitle(session);
+        player.sendTitle(actionTitle, progress, 0, 60, 5);
+        updateActionBar(player, session);
+    }
+
+    /**
+     * 액션 시퀀스 진행 상황을 색상으로 표시하는 문자열 생성.
+     * §a = 완료(초록), §e§l = 현재(노란 굵기), §7 = 미도달(회색)
+     */
+    private static String buildProgressSubtitle(FishingMinigameSession session) {
+        List<Boolean> actions = session.getActions();
+        int current = session.getCurrentIndex();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < actions.size(); i++) {
+            if (i > 0) sb.append("  ");
+            String symbol = actions.get(i) ? plugin.getConfig().getString("Settings.symbol.left") : plugin.getConfig().getString("Settings.symbol.right");
+            if (i < current) {
+                sb.append("§a").append(symbol);        // 완료 - 초록
+            } else if (i == current) {
+                sb.append("§e").append(symbol);     // 현재 - 노란 굵기
+            } else {
+                sb.append("§7").append(symbol);        // 대기 - 회색
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 액션바에 남은 시간을 게이지 바 형태로 표시한다.
+     * 색상: 초록(>60%) → 노란(>30%) → 빨간(≤30%)
+     */
+    private static void updateActionBar(Player player, FishingMinigameSession session) {
+        long remaining = session.getRemainingMs();
+        double ratio = remaining / (double) FishingMinigameSession.DURATION_MS;
+        int filled = (int) Math.ceil(ratio * 10);
+
+        String color = filled > 6 ? "§a" : (filled > 3 ? "§e" : "§c");
+        StringBuilder bar = new StringBuilder("§8[");
+        for (int i = 0; i < 10; i++) {
+            bar.append(i < filled ? color + "█" : "§8█");
+        }
+        bar.append("§8]  ").append(color).append(String.format("%.1f", remaining / 1000.0)).append("§f초");
+
+        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(bar.toString()));
+    }
+
+    // ─── 기존 기능 ────────────────────────────────────────────────────────────
 
     public static void init() {
         plugin.allowedWorlds.clear();
@@ -172,7 +359,7 @@ public class DPCFFunction {
         }
         ItemStack sellButton = new ItemStack(org.bukkit.Material.GREEN_WOOL);
         ItemMeta sm = sellButton.getItemMeta();
-        sm.setDisplayName("§a물고기 판매");
+        sm.setDisplayName("§a물고기 판매 &7(쉬프트-우클릭으로 모두 팔기)");
         sm.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         sellButton.setItemMeta(sm);
         NBT.setStringTag(sellButton, "dpcf_sell", "true");
@@ -252,5 +439,105 @@ public class DPCFFunction {
         plugin.getConfig().set("Settings.PricePerLength", lengthPerPrice);
         plugin.saveConfig();
         player.sendMessage(plugin.prefix + "길이당 가격이 §e" + lengthPerPrice + "§a원으로 설정되었습니다.");
+    }
+
+    public static void sellAllItems(Player p) {
+        Inventory inv = p.getInventory();
+        int totalPrice = 0;
+        for (int i = 0; i < inv.getSize(); i++) {
+            ItemStack item = inv.getItem(i);
+            if (item != null && !item.getType().isAir() && NBT.hasTagKey(item, "dpcf_price")) {
+                totalPrice += NBT.getIntegerTag(item, "dpcf_price") * item.getAmount();
+                inv.setItem(i, null);
+            }
+        }
+        if (totalPrice <= 0) {
+            p.sendMessage(plugin.prefix + "판매할 물고기가 없습니다.");
+            return;
+        }
+        MoneyAPI.addMoney(p, totalPrice);
+        p.sendMessage(plugin.prefix + "물고기를 판매하여 §e" + totalPrice + "§a원을 얻었습니다.");
+    }
+
+    public static void initPlayer(Player p) {
+        if (!plugin.udata.containsKey(p.getUniqueId())) {
+            plugin.udata.put(p.getUniqueId(), new FUser(0, p.getName()));
+        } else {
+            plugin.udata.get(p.getUniqueId()).setName(p.getName());
+        }
+    }
+
+    public static void savePlayer(Player p) {
+        if (plugin.udata.containsKey(p.getUniqueId())) {
+            plugin.udata.save(p.getUniqueId());
+        }
+    }
+
+    public static void initPlaceholder() {
+        new PlaceholderBuilder.Builder(plugin)
+                .identifier("dpcf")
+                .author("DEAD_POOLIO_")
+                .version("1.0.0")
+                .onRequest((player, context) -> {
+                    if (context.equalsIgnoreCase("total_fishing")) {
+                        return String.valueOf(plugin.udata.get(player.getUniqueId()).getTotalFishing());
+                    }
+                    // top ten
+                    if (context.contains("top_fishing_")) {
+                        String[] split = context.split("top_fishing_");
+                        if (split.length == 2) {
+                            try {
+                                int rank = Integer.parseInt(split[1]);
+                                return getTopPlayTime(rank);
+                            } catch (NumberFormatException e) {
+                                return "0";
+                            }
+                        }
+                    }
+                    if (context.contains("top_name_")) {
+                        String[] split = context.split("top_name_");
+                        if (split.length == 2) {
+                            try {
+                                int rank = Integer.parseInt(split[1]);
+                                return getTopPlayUsername(rank);
+                            } catch (NumberFormatException e) {
+                                return "none";
+                            }
+                        }
+                    }
+                    return "0";
+                })
+                .build();
+    }
+
+    public static void initTask() {
+        Bukkit.getScheduler().runTaskTimer(plugin, DPCFFunction::sort, 0L, 100L);
+    }
+
+    public static void sort() {
+        plugin.sort = plugin.udata.entrySet().stream()
+                .sorted((e1, e2) -> Long.compare(e2.getValue().getTotalFishing(), e1.getValue().getTotalFishing()))
+                .toList();
+    }
+
+    public static String getTopPlayUsername(int rank) {
+        plugin.sort = plugin.sort.stream()
+                .filter(entry -> !Bukkit.getOfflinePlayer(entry.getKey()).isOp())
+                .toList();
+        if (rank <= 0 || rank > plugin.sort.size()) {
+            return "none";
+        }
+        return plugin.sort.get(rank - 1).getValue().getName();
+    }
+
+    public static String getTopPlayTime(int rank) {
+        plugin.sort = plugin.sort.stream()
+                .filter(entry -> !Bukkit.getOfflinePlayer(entry.getKey()).isOp())
+                .toList();
+        if (rank <= 0 || rank > plugin.sort.size()) {
+            return "0";
+        }
+        String time = String.valueOf(plugin.sort.get(rank - 1).getValue().getTotalFishing());
+        return time;
     }
 }
