@@ -10,6 +10,7 @@ import com.darksoldier1404.dpcf.obj.ScheduledContestData;
 import com.darksoldier1404.dppc.data.DPlugin;
 import com.darksoldier1404.dppc.data.DataContainer;
 import com.darksoldier1404.dppc.data.DataType;
+import com.darksoldier1404.dppc.utils.PluginUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +35,7 @@ public class CustomFishing extends DPlugin {
 
     @Override
     public void onLoad() {
+        PluginUtil.addPlugin(plugin, 31906);
         fishRankData = loadDataContainer(new DataContainer<>(this, DataType.CUSTOM, "fishranks"), FishRank.class);
         udata = loadDataContainer(new DataContainer<>(this, DataType.CUSTOM, "users"), FUser.class);
         contestData = loadDataContainer(new DataContainer<>(this, DataType.CUSTOM, "contests"), ScheduledContestData.class);
