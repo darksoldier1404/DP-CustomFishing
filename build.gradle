@@ -95,5 +95,5 @@ dependencies {
     compileOnly 'net.kyori.adventure:adventure-key:4.25.0'
     compileOnly "com.bukkit:craftbukkit:" + apiVersion
     compileOnly "com.bukkit:spigot:" + apiVersion
-    compileOnly "com.darksoldier1404.dppc:DPP-Core:5.3-SNAPSHOT"
+    compileOnly "com.darksoldier1404.dppc:DPP-Core:5.4-SNAPSHOT"
 }
