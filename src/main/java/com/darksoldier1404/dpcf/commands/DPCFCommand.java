@@ -107,9 +107,9 @@ public class DPCFCommand {
                 });
 
         // ── 대회 시스템 ────────────────────────────────────────────────────────
-        // /dpcf contest create <name> <length|mostcatch> <HH:mm>
+        // /dpcf contestcreate <name> <length|mostcatch> <HH:mm>
         builder.beginSubCommand("contestcreate",
-                        "/dpcf contestcreate <name> <length|mostcatch> <HH:mm> - schedule a contest")
+                        "/dpcf contestcreate <name> <length|mostcatch> <HH:mm> - 매일 반복 대회 등록")
                 .withPermission("dpcf.admin")
                 .withArgument(ArgumentIndex.ARG_0, ArgumentType.STRING)
                 .withArgument(ArgumentIndex.ARG_1, ArgumentType.STRING)
@@ -128,6 +128,52 @@ public class DPCFCommand {
                         return true;
                     }
                     ContestManager.scheduleContest(player, name, type, time);
+                    return true;
+                });
+        builder.beginSubCommand("contestedit",
+                        "/dpcf contestedit <name> <length|mostcatch> <HH:mm> - 매일 반복 대회 등록 수정")
+                .withPermission("dpcf.admin")
+                .withArgument(ArgumentIndex.ARG_0, ArgumentType.STRING, ContestManager.getScheduledContestNames())
+                .withArgument(ArgumentIndex.ARG_1, ArgumentType.STRING)
+                .withArgument(ArgumentIndex.ARG_2, ArgumentType.STRING)
+                .executesPlayer((player, args) -> {
+                    String name = args.getString(ArgumentIndex.ARG_0);
+                    String typeStr = args.getString(ArgumentIndex.ARG_1);
+                    String time = args.getString(ArgumentIndex.ARG_2);
+                    if (name == null || typeStr == null || time == null) {
+                        player.sendMessage(plugin.prefix + "§c사용법: /dpcf contestedit <이름> <length|mostcatch> <HH:mm>");
+                        return true;
+                    }
+                    ContestType type = ContestType.fromString(typeStr);
+                    if (type == null) {
+                        player.sendMessage(plugin.prefix + "§c대회 종류는 §elength §c또는 §emostcatch §c이어야 합니다.");
+                        return true;
+                    }
+                    ContestManager.editScheduledContest(player, name, type, time);
+                    return true;
+                });
+
+        // /dpcf contestdelete <name>
+        builder.beginSubCommand("contestdelete",
+                        "/dpcf contestdelete <name> - 반복 대회 등록 삭제")
+                .withPermission("dpcf.admin")
+                .withArgument(ArgumentIndex.ARG_0, ArgumentType.STRING, ContestManager.getScheduledContestNames())
+                .executesPlayer((player, args) -> {
+                    String name = args.getString(ArgumentIndex.ARG_0);
+                    if (name == null) {
+                        player.sendMessage(plugin.prefix + "§c사용법: /dpcf contestdelete <이름>");
+                        return true;
+                    }
+                    ContestManager.deleteScheduledContest(player, name);
+                    return true;
+                });
+
+        // /dpcf contestlist
+        builder.beginSubCommand("contestlist",
+                        "/dpcf contestlist - 등록된 반복 대회 목록 확인")
+                .withPermission("dpcf.admin")
+                .executesPlayer((player, args) -> {
+                    ContestManager.listScheduledContests(player);
                     return true;
                 });
 

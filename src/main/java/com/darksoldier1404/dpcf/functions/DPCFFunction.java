@@ -118,8 +118,9 @@ public class DPCFFunction {
             ItemStack fish = session.getCaughtFish();
             player.getInventory().addItem(fish);
             String rank = NBT.getStringTag(fish, "dpcf_rank");
+            String name = fish.getItemMeta().getDisplayName();
             player.sendMessage(plugin.prefix + "§a물고기를 낚았습니다! §e"
-                    + fish.getItemMeta().getDisplayName() + " §a(§e" + rank + "§a)");
+                    + name + " §a(§e" + rank + "§a)");
             player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BELL, SoundCategory.PLAYERS, 1f, 2f);
             player.sendTitle("§a§l낚시 성공!", "§f물고기를 낚아 올렸습니다!", 5, 40, 15);
             Bukkit.getPluginManager().callEvent(new FishingSuccessEvent(player, fish));
